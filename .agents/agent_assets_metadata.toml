@@ -18,3 +18,9 @@ id = "iItiGfqT95kL5PvHZuwB9"
 uri = "file://artifacts/space-website/src/assets/galaxy.png"
 type = "image"
 title = "Spiral galaxy in deep space"
+
+[[generated]]
+id = "cfmiJmxVg-hPpMwqA0Z9m"
+uri = "file://artifacts/space-website/src/assets/tools-bg.png"
+type = "image"
+title = "Deep space high-tech background"
