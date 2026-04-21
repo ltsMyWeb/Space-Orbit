@@ -1,18 +1,22 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import { 
   Rocket, 
   Crosshair,
   Timer,
   Satellite,
   CircleDollarSign,
-  Orbit
+  Orbit,
+  Radio,
+  ShieldCheck,
+  Waves,
+  Globe2,
+  Sparkles
 } from 'lucide-react';
 import { StarField } from '@/components/StarField';
 import { PlanetCard } from '@/components/PlanetCard';
 import { InteractiveText } from '@/components/InteractiveText';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import nebulaImg from '@/assets/nebula.png';
 import blackholeImg from '@/assets/blackhole.png';
@@ -22,12 +26,12 @@ import toolsBg from '@/assets/tools-bg.png';
 const planets = [
   { name: 'Mercury', fact: 'The smallest and fastest planet, zipping around the Sun in just 88 days.', link: 'https://science.nasa.gov/mercury/', color: '#a8a8a8' },
   { name: 'Venus', fact: 'Spins backwards and has a thick atmosphere that traps heat, making it the hottest planet.', link: 'https://science.nasa.gov/venus/', color: '#e0c896' },
-  { name: 'Earth', fact: 'Our home planet, the only place we know of so far that is inhabited by living things.', link: 'https://science.nasa.gov/earth/', color: '#4b9fe3' },
+  { name: 'Earth', fact: 'Our home planet, the only place we know of so far that is inhabited by living things.', link: 'https://science.nasa.gov/earth/', color: '#7d95b8' },
   { name: 'Mars', fact: 'A dusty, cold, desert world with a very thin atmosphere.', link: 'https://science.nasa.gov/mars/', color: '#e36b4b' },
   { name: 'Jupiter', fact: 'A massive gas giant, over twice as massive as all the other planets combined.', link: 'https://science.nasa.gov/jupiter/', color: '#d1a17d' },
   { name: 'Saturn', fact: 'Adorned with a dazzling, complex system of icy rings.', link: 'https://science.nasa.gov/saturn/', color: '#e6d5a1' },
   { name: 'Uranus', fact: 'An ice giant that rotates on its side, uniquely tilted relative to its orbit.', link: 'https://science.nasa.gov/uranus/', color: '#88dbd9' },
-  { name: 'Neptune', fact: 'The most distant major planet, dark, cold, and whipped by supersonic winds.', link: 'https://science.nasa.gov/neptune/', color: '#4b6fe3' },
+  { name: 'Neptune', fact: 'The most distant major planet, dark, cold, and whipped by supersonic winds.', link: 'https://science.nasa.gov/neptune/', color: '#6f7fa7' },
 ];
 
 const missions = [
@@ -60,10 +64,10 @@ function calcOrbit(altKm: number) {
 }
 
 const orbitPresets = [
-  { label: 'Starlink', alt: 550, color: '#00f0ff' },
-  { label: 'ISS', alt: 408, color: '#7c3aed' },
-  { label: 'GPS', alt: 20200, color: '#f59e0b' },
-  { label: 'GEO', alt: 35786, color: '#10b981' },
+  { label: 'Starlink', alt: 550, color: '#d8aa67' },
+  { label: 'ISS', alt: 408, color: '#c7ced8' },
+  { label: 'GPS', alt: 20200, color: '#9a7c56' },
+  { label: 'GEO', alt: 35786, color: '#b77f56' },
 ];
 
 const satelliteStructures = [
@@ -102,6 +106,13 @@ const launchVehicles = [
   { id: 'starship', name: 'SpaceX Starship', capacity: 150000, costPerKg: 100, minOrbit: 'LEO/GTO/TLI', reliability: 82, lead: '6-12 mo', badge: 'Next-Gen' },
 ];
 
+const serviceProfiles = [
+  { id: 'disaster', name: 'Disaster Alerts', summary: 'Faster warnings for floods, fires, and storms.', reach: 1.45, cadence: 1.55, resilience: 1.2 },
+  { id: 'connectivity', name: 'Remote Internet', summary: 'Useful coverage for hard-to-reach towns and schools.', reach: 1.7, cadence: 1.15, resilience: 1.05 },
+  { id: 'agriculture', name: 'Crop Monitoring', summary: 'Useful imaging and moisture checks for farms.', reach: 1.1, cadence: 1.35, resilience: 1.1 },
+  { id: 'climate', name: 'Air + Climate Sensing', summary: 'Repeated sensing for cities and environmental teams.', reach: 1.2, cadence: 1.45, resilience: 1.3 },
+];
+
 function fmt(n: number): string {
   if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
   if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
@@ -117,52 +128,22 @@ function AnimatedCounter({ value, label }: { value: string, label: string }) {
       viewport={{ once: true }}
       className="flex flex-col items-center justify-center p-6 border-r border-white/10 last:border-r-0"
     >
-      <div className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-white/50 mb-2">{value}</div>
+      <div className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-br from-[#f3e0b7] to-white/60 mb-2">{value}</div>
       <div className="text-sm font-medium tracking-widest text-primary uppercase">{label}</div>
     </motion.div>
   );
 }
 
-function CountdownTimer({ net }: { net: string }) {
-  const [timeLeft, setTimeLeft] = useState({ d: 0, h: 0, m: 0, s: 0 });
-  useEffect(() => {
-    const target = new Date(net).getTime();
-    const interval = setInterval(() => {
-      const now = new Date().getTime();
-      const distance = target - now;
-      if (distance < 0) { clearInterval(interval); return; }
-      setTimeLeft({
-        d: Math.floor(distance / (1000 * 60 * 60 * 24)),
-        h: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-        m: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
-        s: Math.floor((distance % (1000 * 60)) / 1000)
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [net]);
-  return (
-    <div className="flex gap-3 justify-center items-center mt-6">
-      {Object.entries(timeLeft).map(([unit, value]) => (
-        <div key={unit} className="flex flex-col items-center">
-          <div className="w-14 h-14 flex items-center justify-center bg-black/50 rounded-xl border border-primary/30 shadow-[0_0_15px_rgba(138,43,226,0.3)]">
-            <span className="text-xl font-bold font-mono">{value.toString().padStart(2, '0')}</span>
-          </div>
-          <span className="text-xs uppercase text-muted-foreground mt-2 tracking-widest">{unit}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function Home() {
   const { scrollYProgress } = useScroll();
-  const heroY = useTransform(scrollYProgress, [0, 0.5], ['0%', '50%']);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
-  const starBgY = useTransform(scrollYProgress, [0, 1], ['0%', '20%']);
+  const prefersReducedMotion = useReducedMotion();
+  const heroY = useTransform(scrollYProgress, [0, 0.5], ['0%', '24%']);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.18], [1, 0.18]);
+  const starBgY = useTransform(scrollYProgress, [0, 1], ['0%', '10%']);
 
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [activeTool, setActiveTool] = useState<'orbit' | 'satellite' | 'launch'>('orbit');
-
+  const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
+  const cursorFrame = useRef<number | null>(null);
+  const cursorTarget = useRef({ x: 50, y: 50 });
   // Orbit calculator state
   const [orbitAlt, setOrbitAlt] = useState(408);
   const orbitData = calcOrbit(orbitAlt);
@@ -182,19 +163,44 @@ export default function Home() {
   const launchCost = payloadMass * selVehicle.costPerKg;
   const canFit = payloadMass <= selVehicle.capacity;
 
+  // Usage lab state
+  const [selService, setSelService] = useState(serviceProfiles[0]);
+  const [coverageRadius, setCoverageRadius] = useState(2400);
+  const [urgency, setUrgency] = useState(68);
+  const [dailyUsers, setDailyUsers] = useState(280000);
+  const [dataDemand, setDataDemand] = useState(420);
+  const [resilienceLevel, setResilienceLevel] = useState(72);
+
   // Launch countdown state
   const [launches, setLaunches] = useState<any[]>([]);
   const [launchesLoading, setLaunchesLoading] = useState(true);
 
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePos({
+    if (window.matchMedia('(pointer: coarse)').matches) return;
+
+    const commitGlow = () => {
+      setMousePos(cursorTarget.current);
+      cursorFrame.current = null;
+    };
+
+    const handlePointerMove = (e: PointerEvent) => {
+      cursorTarget.current = {
         x: (e.clientX / window.innerWidth) * 100,
         y: (e.clientY / window.innerHeight) * 100,
-      });
+      };
+
+      if (cursorFrame.current == null) {
+        cursorFrame.current = window.requestAnimationFrame(commitGlow);
+      }
     };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      if (cursorFrame.current != null) {
+        window.cancelAnimationFrame(cursorFrame.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -204,9 +210,99 @@ export default function Home() {
       .catch(() => setLaunchesLoading(false));
   }, []);
 
-  const orbitSvgRadius = 90;
-  const orbitScale = Math.min(1, 400 / (orbitData.r * 2));
   const orbitDisplayR = Math.max(60, Math.min(110, (orbitData.r / 42157) * 110));
+
+  const usageLab = useMemo(() => {
+    const coverageFactor = coverageRadius / 700;
+    const urgencyFactor = urgency / 100;
+    const resilienceFactor = resilienceLevel / 100;
+    const userFactor = Math.max(0.6, dailyUsers / 180000);
+    const dataFactor = Math.max(0.7, dataDemand / 320);
+
+    const recommendedSatellites = Math.max(
+      3,
+      Math.round(
+        selService.reach * coverageFactor +
+          selService.cadence * urgencyFactor * 4 +
+          userFactor * 2.2,
+      ),
+    );
+
+    const revisitMinutes = Math.max(
+      22,
+      Math.round(210 / (recommendedSatellites * 0.52 + urgencyFactor * 3 + 1)),
+    );
+
+    const linkLatency = Math.max(
+      18,
+      Math.round((orbitAlt / 34) * 0.78 + dataDemand / 16 + (100 - resilienceLevel) / 8),
+    );
+
+    const capacityScore = Math.min(
+      99,
+      Math.round(
+        48 +
+          selVehicle.reliability * 0.22 +
+          resilienceLevel * 0.18 +
+          (canFit ? 8 : -22) +
+          (recommendedSatellites <= 12 ? 6 : 0),
+      ),
+    );
+
+    const peopleSupported = Math.round(dailyUsers * selService.reach * (revisitMinutes < 60 ? 1.4 : 1.08));
+    const groundStations = Math.max(2, Math.round(coverageRadius / 1800 + dataDemand / 250 + 1));
+    const downlinkNeed = Math.round((dataDemand * recommendedSatellites) / 28);
+
+    return {
+      recommendedSatellites,
+      revisitMinutes,
+      linkLatency,
+      capacityScore,
+      peopleSupported,
+      groundStations,
+      downlinkNeed,
+      serviceTier:
+        capacityScore >= 88 ? 'Launch-ready premium' :
+        capacityScore >= 74 ? 'Strong with a few upgrades' :
+        'Needs reinforcement',
+    };
+  }, [
+    canFit,
+    coverageRadius,
+    dailyUsers,
+    dataDemand,
+    orbitAlt,
+    resilienceLevel,
+    selService,
+    selVehicle.reliability,
+  ]);
+
+  const heroSnapshot = useMemo(() => {
+    const nextLaunch = launches[0];
+
+    return [
+      {
+        label: 'Orbit Altitude',
+        value: `${orbitAlt.toLocaleString()} km`,
+        note: orbitAlt < 2000 ? 'Low Earth orbit' : 'High coverage orbit',
+      },
+      {
+        label: 'Orbital Speed',
+        value: `${orbitData.speedKms} km/s`,
+        note: 'Live from the orbit calculator',
+      },
+      {
+        label: 'Mission Cost',
+        value: fmt(launchCost),
+        note: canFit ? selVehicle.name : 'Over capacity',
+      },
+      {
+        label: 'Launch Feed',
+        value: launchesLoading ? 'Syncing...' : (nextLaunch?.name ?? 'Awaiting feed'),
+        note: launchesLoading ? 'Refreshing real launch data' : (nextLaunch?.rocket?.configuration?.name ?? 'Upcoming launch'),
+      },
+    ];
+  }, [orbitAlt, orbitData.speedKms, launchCost, canFit, selVehicle.name, launches, launchesLoading]);
 
   return (
     <div className="relative min-h-screen bg-background text-white selection:bg-primary/30 selection:text-primary-foreground overflow-hidden">
@@ -215,17 +311,17 @@ export default function Home() {
       </motion.div>
 
       <div
-        className="fixed inset-0 pointer-events-none opacity-30 mix-blend-screen z-0"
+        className="fixed inset-0 pointer-events-none opacity-25 mix-blend-screen z-0"
         style={{
-          background: `radial-gradient(circle at ${mousePos.x}% ${mousePos.y}%, rgba(138,43,226,0.4) 0%, transparent 50%),
-                       radial-gradient(circle at ${100 - mousePos.x}% ${100 - mousePos.y}%, rgba(0,240,255,0.3) 0%, transparent 40%)`
+          background: `radial-gradient(circle at ${mousePos.x}% ${mousePos.y}%, rgba(236,199,140,0.34) 0%, transparent 52%),
+                       radial-gradient(circle at ${100 - mousePos.x}% ${100 - mousePos.y}%, rgba(255,255,255,0.12) 0%, transparent 38%)`
         }}
       />
 
       {/* NAV */}
       <nav className="fixed top-0 left-0 right-0 h-20 z-50 bg-black/20 backdrop-blur-xl border-b border-white/5 px-6 md:px-12 flex items-center justify-between">
         <div className="font-black text-2xl tracking-[0.2em] uppercase text-white flex items-center gap-3">
-          <div className="w-4 h-4 rounded-full bg-primary shadow-[0_0_20px_rgba(138,43,226,1)]" />
+          <div className="w-4 h-4 rounded-full bg-primary shadow-[0_0_20px_rgba(236,199,140,0.95)]" />
           ORBITAL
         </div>
         <div className="hidden md:flex gap-8">
@@ -238,31 +334,163 @@ export default function Home() {
       <div className="relative z-10 pt-20">
 
         {/* HERO */}
-        <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-6 overflow-hidden">
-          <motion.div style={{ y: heroY, opacity: heroOpacity }} className="text-center max-w-5xl mx-auto flex flex-col items-center z-10">
+        <section className="relative min-h-[92vh] px-6 overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute -left-24 top-8 h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle,rgba(236,199,140,0.18),transparent_68%)] blur-3xl" />
+            <div className="absolute right-0 top-24 h-[24rem] w-[24rem] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.08),transparent_70%)] blur-3xl" />
+            <div className="absolute left-1/2 bottom-0 h-[26rem] w-[34rem] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(104,118,148,0.2),transparent_72%)] blur-3xl" />
+          </div>
+
+          <div className="relative mx-auto grid min-h-[calc(92vh-5rem)] max-w-7xl items-center gap-12 py-12 lg:grid-cols-[1.12fr_0.88fr]">
+            <motion.div style={{ y: heroY, opacity: heroOpacity }} className="relative z-10 max-w-3xl text-center lg:text-left">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: prefersReducedMotion ? 0 : 0.9 }}
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-2 text-xs font-bold uppercase tracking-[0.25em] text-[#f0d7a8] backdrop-blur-xl"
+              >
+                <Crosshair size={16} />
+                Live mission telemetry
+              </motion.div>
+
+              <h1 className="mt-8 flex flex-col gap-1 text-6xl font-black uppercase tracking-tighter leading-[0.88] md:text-8xl">
+                <motion.span initial={{ opacity: 0, x: -28 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: prefersReducedMotion ? 0 : 0.8, delay: 0.1 }} className="text-white/95">
+                  Space systems,
+                </motion.span>
+                <motion.span initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: prefersReducedMotion ? 0 : 0.8, delay: 0.22 }} className="text-gradient">
+                  translated into
+                </motion.span>
+                <motion.span initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: prefersReducedMotion ? 0 : 0.8, delay: 0.34 }} className="text-white/95">
+                  a live product.
+                </motion.span>
+              </h1>
+
+              <motion.p
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: prefersReducedMotion ? 0 : 0.85, delay: 0.6 }}
+                className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl lg:mx-0"
+              >
+                A premium orbit dashboard that turns altitude, launch cost, and mission planning into something people can actually touch, read, and present.
+              </motion.p>
+
+              <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: prefersReducedMotion ? 0 : 0.75, delay: 0.82 }} className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
+                <Button
+                  size="lg"
+                  onClick={() => document.getElementById('tools')?.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' })}
+                className="group rounded-full bg-white px-8 py-7 text-base font-bold text-black shadow-[0_18px_50px_rgba(255,255,255,0.18)] transition-all hover:bg-white/92 hover:shadow-[0_22px_70px_rgba(255,255,255,0.24)]"
+                >
+                  Open Mission Lab
+                  <Rocket className="ml-3 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => document.getElementById('missions')?.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' })}
+                  className="group rounded-full border-white/12 bg-white/4 px-8 py-7 text-base font-bold text-white/90 backdrop-blur-xl hover:border-white/20 hover:bg-white/8"
+                >
+                  View Space Timeline
+                </Button>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: prefersReducedMotion ? 0 : 0.8, delay: 1.02 }}
+                className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
+              >
+                {heroSnapshot.map((item) => (
+                  <div key={item.label} className="lux-glass liquid-sheen rounded-3xl p-4 text-left">
+                    <div className="text-[11px] uppercase tracking-[0.28em] text-muted-foreground">{item.label}</div>
+                    <div className="mt-3 text-lg font-black text-white">{item.value}</div>
+                    <div className="mt-2 text-sm text-muted-foreground">{item.note}</div>
+                  </div>
+                ))}
+              </motion.div>
+            </motion.div>
+
             <motion.div
-              initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 1 }}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-cyan-500/30 bg-cyan-500/10 backdrop-blur-md mb-8 text-cyan-400"
+              initial={{ opacity: 0, scale: 0.94, rotateY: 10 }}
+              animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+              transition={{ duration: prefersReducedMotion ? 0 : 1, delay: 0.35 }}
+              className="relative z-10 flex justify-center lg:justify-end"
             >
-              <Crosshair size={16} />
-              <span className="text-sm font-bold tracking-[0.2em] uppercase">Telemetry Active</span>
+              <div className="lux-glass liquid-sheen relative w-full max-w-[560px] overflow-hidden rounded-[2rem] p-5 sm:p-7">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent opacity-70" />
+                <div className="absolute -right-16 top-8 h-44 w-44 rounded-full bg-[radial-gradient(circle,rgba(236,199,140,0.24),transparent_68%)] blur-3xl" />
+                <div className="absolute inset-x-6 bottom-6 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+
+                <div className="relative flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Mission pulse</div>
+                    <div className="mt-2 text-2xl font-black text-white">Liquid orbit preview</div>
+                  </div>
+                  <div className="rounded-full border border-white/10 bg-black/30 px-4 py-2 text-right">
+                    <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Live altitude</div>
+                    <div className="text-lg font-black text-[#f0d7a8]">{orbitAlt.toLocaleString()} km</div>
+                  </div>
+                </div>
+
+                <div className="relative mt-6 flex items-center justify-center rounded-[1.75rem] border border-white/6 bg-black/24 p-4 sm:p-6">
+                  <svg viewBox="0 0 420 320" className="h-auto w-full max-w-[420px]">
+                    <defs>
+                      <radialGradient id="planetGlow" cx="35%" cy="30%">
+                        <stop offset="0%" stopColor="#f4e4c0" stopOpacity="0.95" />
+                        <stop offset="100%" stopColor="#a9b3c5" stopOpacity="0.95" />
+                      </radialGradient>
+                      <radialGradient id="planetShade" cx="50%" cy="50%">
+                        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.26" />
+                        <stop offset="100%" stopColor="#000000" stopOpacity="0" />
+                      </radialGradient>
+                    </defs>
+                    <circle cx="210" cy="160" r={orbitDisplayR + 58} fill="none" stroke="rgba(236,199,140,0.12)" strokeWidth="1" />
+                    <circle cx="210" cy="160" r={orbitDisplayR + 38} fill="none" stroke="rgba(255,255,255,0.12)" strokeDasharray="5 10" strokeWidth="1.2" />
+                    <motion.circle
+                      cx="210"
+                      cy="160"
+                      r={orbitDisplayR + 38}
+                      fill="none"
+                      stroke="rgba(236,199,140,0.46)"
+                      strokeWidth="1.5"
+                      strokeDasharray="1 12"
+                      animate={prefersReducedMotion ? undefined : { rotate: 360 }}
+                      transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+                      style={{ transformOrigin: '210px 160px' }}
+                    />
+                    <circle cx="210" cy="160" r="56" fill="url(#planetGlow)" />
+                    <circle cx="210" cy="160" r="56" fill="url(#planetShade)" opacity="0.58" />
+                    <circle cx="210" cy="160" r="44" fill="rgba(235, 225, 208, 0.88)" />
+                    <circle cx="208" cy="154" r="13" fill="rgba(255,255,255,0.35)" />
+                    <circle cx={210 + orbitDisplayR + 38} cy="160" r="7" fill="#f0d7a8" />
+                    <circle cx={210 - orbitDisplayR - 8} cy="160" r="4.2" fill="rgba(255,255,255,0.65)" />
+                    <text x="210" y="286" textAnchor="middle" fill="#f0d7a8" fontSize="11" fontFamily="monospace" letterSpacing="1.2">
+                      Orbit: {orbitData.speedKms} km/s  /  {orbitData.periodMin} min cycle
+                    </text>
+                  </svg>
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-white/8 bg-black/30 p-4">
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Coverage</div>
+                    <div className="mt-2 text-xl font-black text-white">{orbitData.coveragePct}%</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/8 bg-black/30 p-4">
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Build Cost</div>
+                    <div className="mt-2 text-xl font-black text-white">{fmt(launchCost)}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/8 bg-black/30 p-4 col-span-2 sm:col-span-1">
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Launch Feed</div>
+                    <div className="mt-2 truncate text-xl font-black text-white">
+                      {launchesLoading ? 'Syncing...' : (launches[0]?.name ?? 'Awaiting feed')}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </motion.div>
-            <h1 className="text-7xl md:text-9xl font-black tracking-tighter mb-6 uppercase flex flex-col leading-[0.85]">
-              <motion.span initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 1, delay: 0.2 }} className="font-thin text-white/90">Beyond</motion.span>
-              <motion.span initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 1, delay: 0.4 }} className="text-gradient">The Horizon</motion.span>
-            </h1>
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 0.8 }} className="text-xl md:text-2xl text-muted-foreground max-w-2xl mb-12 font-light leading-relaxed">
-              A high-fidelity exploration interface for the cosmos. Calibrate your instruments and prepare for launch.
-            </motion.p>
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, delay: 1 }}>
-              <Button size="lg" className="bg-white hover:bg-white/90 text-black rounded-full px-10 py-8 text-lg font-bold group shadow-[0_0_40px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_rgba(255,255,255,0.5)] transition-all">
-                INITIATE SEQUENCE
-                <Rocket className="ml-3 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-              </Button>
-            </motion.div>
-          </motion.div>
-          <motion.div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10" animate={{ y: [0, 15, 0] }} transition={{ duration: 2.5, repeat: Infinity }}>
-            <div className="w-[2px] h-24 bg-gradient-to-b from-cyan-400 to-transparent" />
+          </div>
+
+          <motion.div className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2" animate={prefersReducedMotion ? undefined : { y: [0, 10, 0] }} transition={{ duration: 2.8, repeat: Infinity }}>
+            <div className="h-24 w-[2px] bg-gradient-to-b from-[#f0d7a8] to-transparent" />
           </motion.div>
         </section>
 
@@ -300,33 +528,21 @@ export default function Home() {
           </div>
 
           <div className="max-w-6xl mx-auto relative z-10">
-            <motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-16 text-center">
+            <motion.div initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="mb-24 text-center">
               <h2 className="text-5xl md:text-7xl font-black mb-6 tracking-tight uppercase">Mission <span className="text-gradient font-thin">Control</span></h2>
               <p className="text-muted-foreground text-xl max-w-2xl mx-auto font-light">Professional-grade instruments for planning real space missions.</p>
             </motion.div>
 
-            {/* Tab bar */}
-            <div className="w-full max-w-2xl mx-auto grid grid-cols-3 bg-black/50 border border-white/10 rounded-full p-2 h-16 mb-12">
-              <button onClick={() => setActiveTool('orbit')} className={`rounded-full text-sm md:text-base font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTool === 'orbit' ? 'bg-cyan-500 text-black shadow-[0_0_20px_rgba(0,240,255,0.5)]' : 'text-muted-foreground hover:text-white'}`}>
-                <Orbit size={15} /> Orbit
-              </button>
-              <button onClick={() => setActiveTool('satellite')} className={`rounded-full text-sm md:text-base font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTool === 'satellite' ? 'bg-primary text-white shadow-[0_0_20px_rgba(138,43,226,0.5)]' : 'text-muted-foreground hover:text-white'}`}>
-                <Satellite size={15} /> Satellite
-              </button>
-              <button onClick={() => setActiveTool('launch')} className={`rounded-full text-sm md:text-base font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${activeTool === 'launch' ? 'bg-emerald-500 text-black shadow-[0_0_20px_rgba(16,185,129,0.5)]' : 'text-muted-foreground hover:text-white'}`}>
-                <CircleDollarSign size={15} /> Cost
-              </button>
-            </div>
+            <div className="space-y-16">
 
             {/* ---- TOOL 1: ORBIT CALCULATOR ---- */}
-            {activeTool === 'orbit' && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="animated-border rounded-3xl p-8 md:p-12">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="animated-border rounded-3xl p-8 md:p-12" style={{ borderColor: 'rgba(236,199,140,0.3)' }}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                   <div>
-                    <h3 className="text-3xl font-black uppercase tracking-widest text-cyan-400 mb-2 flex items-center gap-3">
+                    <h3 className="text-3xl font-black uppercase tracking-widest text-[#f0d7a8] mb-2 flex items-center gap-3">
                       <Orbit /> Orbit Calculator
                     </h3>
-                    <p className="text-muted-foreground mb-8 text-sm">Real orbital mechanics — enter any altitude and get precise parameters using Kepler's laws.</p>
+                    <p className="text-muted-foreground mb-8 text-sm">Real orbital mechanics - enter any altitude and get precise parameters using Kepler's laws.</p>
 
                     <div className="mb-6">
                       <label className="text-xs uppercase tracking-widest text-muted-foreground mb-3 block">Orbital Altitude</label>
@@ -335,9 +551,9 @@ export default function Home() {
                           type="range" min={200} max={35786} step={50}
                           value={orbitAlt}
                           onChange={e => setOrbitAlt(Number(e.target.value))}
-                          className="flex-1 accent-cyan-400 h-2 rounded cursor-pointer"
+                          className="flex-1 accent-[#f0d7a8] h-2 rounded cursor-pointer"
                         />
-                        <div className="bg-black/50 border border-cyan-500/30 rounded-xl px-4 py-2 min-w-[110px] text-center font-mono text-cyan-300 text-sm font-bold">
+                        <div className="bg-black/50 border border-white/10 rounded-xl px-4 py-2 min-w-[110px] text-center font-mono text-[#f0d7a8] text-sm font-bold">
                           {orbitAlt.toLocaleString()} km
                         </div>
                       </div>
@@ -357,10 +573,10 @@ export default function Home() {
 
                     <div className="grid grid-cols-2 gap-3">
                       {[
-                        { label: 'Orbital Speed', value: `${orbitData.speedKms} km/s`, color: 'text-cyan-300' },
-                        { label: 'Period', value: `${Number(orbitData.periodMin) < 60 ? orbitData.periodMin + ' min' : (Number(orbitData.periodMin)/60).toFixed(2) + ' hrs'}`, color: 'text-cyan-300' },
-                        { label: 'Orbits / Day', value: orbitData.orbitsPerDay, color: 'text-purple-300' },
-                        { label: 'Earth Coverage', value: `${orbitData.coveragePct}%`, color: 'text-purple-300' },
+                        { label: 'Orbital Speed', value: `${orbitData.speedKms} km/s`, color: 'text-[#f0d7a8]' },
+                        { label: 'Period', value: `${Number(orbitData.periodMin) < 60 ? orbitData.periodMin + ' min' : (Number(orbitData.periodMin)/60).toFixed(2) + ' hrs'}`, color: 'text-white/85' },
+                        { label: 'Orbits / Day', value: orbitData.orbitsPerDay, color: 'text-[#d8aa67]' },
+                        { label: 'Earth Coverage', value: `${orbitData.coveragePct}%`, color: 'text-[#b77f56]' },
                       ].map(stat => (
                         <div key={stat.label} className="bg-black/40 rounded-2xl border border-white/5 p-4">
                           <div className="text-xs uppercase tracking-widest text-muted-foreground mb-1">{stat.label}</div>
@@ -375,16 +591,16 @@ export default function Home() {
                     <svg viewBox="0 0 260 260" className="w-full max-w-[280px]">
                       <defs>
                         <radialGradient id="earthGrad" cx="50%" cy="50%">
-                          <stop offset="0%" stopColor="#4b9fe3" />
-                          <stop offset="100%" stopColor="#1a3a5e" />
+                          <stop offset="0%" stopColor="#f4e4c0" />
+                          <stop offset="100%" stopColor="#9aa4b6" />
                         </radialGradient>
                         <radialGradient id="earthGlow" cx="50%" cy="50%">
-                          <stop offset="0%" stopColor="#4b9fe3" stopOpacity="0.3" />
+                          <stop offset="0%" stopColor="#f4e4c0" stopOpacity="0.28" />
                           <stop offset="100%" stopColor="transparent" stopOpacity="0" />
                         </radialGradient>
                       </defs>
-                      <circle cx="130" cy="130" r={orbitDisplayR + 15} fill="none" stroke="#00f0ff" strokeWidth="0.5" strokeDasharray="4 4" opacity="0.3" />
-                      <circle cx="130" cy="130" r={orbitDisplayR + 15} fill="none" stroke="#00f0ff" strokeWidth="1.5" opacity="0.7" />
+                      <circle cx="130" cy="130" r={orbitDisplayR + 15} fill="none" stroke="#f0d7a8" strokeWidth="0.5" strokeDasharray="4 4" opacity="0.24" />
+                      <circle cx="130" cy="130" r={orbitDisplayR + 15} fill="none" stroke="#f0d7a8" strokeWidth="1.5" opacity="0.58" />
                       <circle cx="130" cy="130" r="26" fill="url(#earthGlow)" />
                       <circle cx="130" cy="130" r="22" fill="url(#earthGrad)" />
                       <text x="130" y="135" textAnchor="middle" fill="white" fontSize="8" fontWeight="bold" opacity="0.6">EARTH</text>
@@ -392,7 +608,7 @@ export default function Home() {
                         cx={130 + orbitDisplayR + 15}
                         cy="130"
                         r="5"
-                        fill="#00f0ff"
+                        fill="#f0d7a8"
                         filter="url(#satGlow)"
                         animate={{ rotate: 360 }}
                         style={{ transformOrigin: '130px 130px' }}
@@ -402,24 +618,22 @@ export default function Home() {
                         cx={130 + orbitDisplayR + 15}
                         cy="130"
                         r="12"
-                        fill="#00f0ff"
+                        fill="#f0d7a8"
                         opacity="0.15"
                         style={{ transformOrigin: '130px 130px' }}
                         animate={{ rotate: 360 }}
                         transition={{ duration: Number(orbitData.periodMin) / 10, repeat: Infinity, ease: 'linear' }}
                       />
-                      <text x="130" y="248" textAnchor="middle" fill="#00f0ff" fontSize="9" opacity="0.7" fontFamily="monospace">
+                      <text x="130" y="248" textAnchor="middle" fill="#f0d7a8" fontSize="9" opacity="0.7" fontFamily="monospace">
                         Alt: {orbitAlt.toLocaleString()} km
                       </text>
                     </svg>
                   </div>
                 </div>
-              </motion.div>
-            )}
+            </motion.div>
 
             {/* ---- TOOL 2: SATELLITE BUILDER ---- */}
-            {activeTool === 'satellite' && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="animated-border rounded-3xl p-8 md:p-12">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="animated-border rounded-3xl p-8 md:p-12" style={{ borderColor: 'rgba(236,199,140,0.3)' }}>
                 <h3 className="text-3xl font-black uppercase tracking-widest text-primary mb-2 flex items-center gap-3">
                   <Satellite /> Satellite Builder
                 </h3>
@@ -444,9 +658,9 @@ export default function Home() {
                             >
                               <div className="font-bold">{opt.name}</div>
                               <div className="text-xs text-muted-foreground mt-0.5">
-                                {fmt(opt.cost)} &nbsp;·&nbsp; {opt.mass} kg
-                                {'bandwidth' in opt ? ` · ${opt.bandwidth}` : ''}
-                                {'desc' in opt ? ` · ${opt.desc}` : ''}
+                                {fmt(opt.cost)} &nbsp; / &nbsp; {opt.mass} kg
+                                {'bandwidth' in opt ? `  /  ${opt.bandwidth}` : ''}
+                                {'desc' in opt ? `  /  ${opt.desc}` : ''}
                               </div>
                             </button>
                           ))}
@@ -460,8 +674,8 @@ export default function Home() {
                     <div className="bg-black/50 rounded-2xl border border-primary/20 p-6 flex-1">
                       <div className="text-xs uppercase tracking-widest text-muted-foreground mb-6">Mission Summary</div>
                       {[
-                        { label: 'Total Mass', value: `${satTotalMass.toFixed(1)} kg`, bar: Math.min(100, (satTotalMass / 700) * 100), color: 'bg-cyan-400' },
-                        { label: 'Power Budget', value: `${satPower} W`, bar: Math.min(100, (satPower / 600) * 100), color: 'bg-yellow-400' },
+                        { label: 'Total Mass', value: `${satTotalMass.toFixed(1)} kg`, bar: Math.min(100, (satTotalMass / 700) * 100), color: 'bg-[#d8aa67]' },
+                        { label: 'Power Budget', value: `${satPower} W`, bar: Math.min(100, (satPower / 600) * 100), color: 'bg-[#9a7c56]' },
                         { label: 'Est. Build Cost', value: fmt(satTotalCost), bar: Math.min(100, (satTotalCost / 20000000) * 100), color: 'bg-primary' },
                       ].map(stat => (
                         <div key={stat.label} className="mb-5">
@@ -492,13 +706,11 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
-            )}
+            </motion.div>
 
             {/* ---- TOOL 3: LAUNCH COST ESTIMATOR ---- */}
-            {activeTool === 'launch' && (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="animated-border rounded-3xl p-8 md:p-12">
-                <h3 className="text-3xl font-black uppercase tracking-widest text-emerald-400 mb-2 flex items-center gap-3">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="animated-border rounded-3xl p-8 md:p-12" style={{ borderColor: 'rgba(216,170,103,0.3)' }}>
+                <h3 className="text-3xl font-black uppercase tracking-widest text-[#f0d7a8] mb-2 flex items-center gap-3">
                   <CircleDollarSign /> Launch Cost Estimator
                 </h3>
                 <p className="text-muted-foreground mb-8 text-sm">Compare real launch vehicles and estimate mission cost based on payload mass and orbit.</p>
@@ -512,9 +724,9 @@ export default function Home() {
                           type="range" min={1} max={5000} step={1}
                           value={payloadMass}
                           onChange={e => setPayloadMass(Number(e.target.value))}
-                          className="flex-1 accent-emerald-400 h-2 rounded cursor-pointer"
+                          className="flex-1 accent-[#d8aa67] h-2 rounded cursor-pointer"
                         />
-                        <div className="bg-black/50 border border-emerald-500/30 rounded-xl px-4 py-2 min-w-[100px] text-center font-mono text-emerald-300 text-sm font-bold">
+                        <div className="bg-black/50 border border-white/10 rounded-xl px-4 py-2 min-w-[100px] text-center font-mono text-[#f0d7a8] text-sm font-bold">
                           {payloadMass.toLocaleString()} kg
                         </div>
                       </div>
@@ -532,7 +744,7 @@ export default function Home() {
                               disabled={!fits}
                               className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition-all flex justify-between items-center ${
                                 !fits ? 'opacity-30 cursor-not-allowed border-white/5' :
-                                selVehicle.id === v.id ? 'border-emerald-500/60 bg-emerald-500/10 text-white' :
+                                selVehicle.id === v.id ? 'border-primary/60 bg-primary/10 text-white' :
                                 'border-white/10 bg-black/30 text-muted-foreground hover:border-white/20 hover:text-white'
                               }`}
                             >
@@ -542,7 +754,7 @@ export default function Home() {
                                 {!fits && <span className="ml-2 text-xs text-red-400">Exceeds capacity ({v.capacity.toLocaleString()} kg)</span>}
                               </div>
                               <div className="text-right text-xs font-mono">
-                                <div className="text-emerald-400">${v.costPerKg.toLocaleString()}/kg</div>
+                                <div className="text-[#d8aa67]">${v.costPerKg.toLocaleString()}/kg</div>
                                 <div className="text-white/30">{v.reliability}% reliability</div>
                               </div>
                             </button>
@@ -553,11 +765,11 @@ export default function Home() {
                   </div>
 
                   <div className="flex flex-col gap-4">
-                    <div className="bg-black/50 rounded-2xl border border-emerald-500/20 p-6">
+                    <div className="bg-black/50 rounded-2xl border border-white/10 p-6">
                       <div className="text-xs uppercase tracking-widest text-muted-foreground mb-6">Cost Breakdown</div>
                       {canFit ? (
                         <>
-                          <div className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 to-cyan-400 mb-1">{fmt(launchCost)}</div>
+                          <div className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#f3e0b7] via-[#d8aa67] to-[#9a7c56] mb-1">{fmt(launchCost)}</div>
                           <div className="text-muted-foreground text-sm mb-8">Estimated launch cost</div>
                           <div className="space-y-4">
                             {[
@@ -578,7 +790,7 @@ export default function Home() {
                             <div className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Payload Fill Ratio</div>
                             <div className="h-3 bg-white/10 rounded-full overflow-hidden">
                               <motion.div
-                                className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full"
+                                className="h-full bg-gradient-to-r from-[#f3e0b7] to-[#d8aa67] rounded-full"
                                 initial={{ width: 0 }}
                                 animate={{ width: `${Math.min(100, (payloadMass / selVehicle.capacity) * 100)}%` }}
                                 transition={{ duration: 0.4 }}
@@ -600,13 +812,13 @@ export default function Home() {
                         <Timer size={12} /> Next Launches
                       </div>
                       {launchesLoading ? (
-                        <div className="text-purple-400 animate-pulse text-xs font-mono">Establishing uplink...</div>
+                        <div className="text-[#d8aa67] animate-pulse text-xs font-mono">Establishing uplink...</div>
                       ) : launches.length > 0 ? (
                         <div className="space-y-3">
                           {launches.slice(0, 2).map(l => (
                             <div key={l.id} className="text-xs">
                               <div className="font-bold text-white truncate">{l.name}</div>
-                              <div className="text-muted-foreground">{l.rocket?.configuration?.name} · {new Date(l.net).toLocaleDateString()}</div>
+                              <div className="text-muted-foreground">{l.rocket?.configuration?.name}  /  {new Date(l.net).toLocaleDateString()}</div>
                             </div>
                           ))}
                         </div>
@@ -616,8 +828,218 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
-            )}
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="animated-border rounded-3xl p-8 md:p-12" style={{ borderColor: 'rgba(127,140,163,0.34)' }}>
+                <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                  <div>
+                    <h3 className="text-3xl font-black uppercase tracking-widest text-white mb-2 flex items-center gap-3">
+                      <Globe2 className="text-[#f0d7a8]" /> Service Coverage Planner
+                    </h3>
+                    <p className="text-muted-foreground text-sm">Turn a plain-language service goal into satellite count, revisit speed, and likely user reach.</p>
+                  </div>
+                  <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-[#f0d7a8]">
+                    {usageLab.serviceTier}
+                  </div>
+                </div>
+
+                <div className="mt-8 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+                  <div className="space-y-6">
+                    <div>
+                      <div className="mb-3 text-xs uppercase tracking-[0.28em] text-muted-foreground">Service Goal</div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {serviceProfiles.map((service) => (
+                          <button
+                            key={service.id}
+                            onClick={() => setSelService(service)}
+                            className={`rounded-2xl border px-4 py-4 text-left transition-all ${selService.id === service.id ? 'border-primary/60 bg-primary/10 shadow-[0_0_40px_rgba(216,170,103,0.12)]' : 'border-white/10 bg-black/30 hover:border-white/20 hover:bg-white/[0.03]'}`}
+                          >
+                            <div className="font-bold text-white">{service.name}</div>
+                            <div className="mt-1 text-sm text-muted-foreground">{service.summary}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-5 md:grid-cols-2">
+                      <div className="rounded-2xl border border-white/8 bg-black/30 p-5">
+                        <div className="flex items-center justify-between text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                          Coverage Radius
+                          <span className="text-[#f0d7a8]">{coverageRadius.toLocaleString()} km</span>
+                        </div>
+                        <input type="range" min={600} max={8000} step={100} value={coverageRadius} onChange={(e) => setCoverageRadius(Number(e.target.value))} className="mt-4 w-full accent-[#f0d7a8]" />
+                      </div>
+                      <div className="rounded-2xl border border-white/8 bg-black/30 p-5">
+                        <div className="flex items-center justify-between text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                          Daily Users
+                          <span className="text-[#f0d7a8]">{dailyUsers.toLocaleString()}</span>
+                        </div>
+                        <input type="range" min={50000} max={1200000} step={10000} value={dailyUsers} onChange={(e) => setDailyUsers(Number(e.target.value))} className="mt-4 w-full accent-[#f0d7a8]" />
+                      </div>
+                      <div className="rounded-2xl border border-white/8 bg-black/30 p-5">
+                        <div className="flex items-center justify-between text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                          Response Urgency
+                          <span className="text-[#f0d7a8]">{urgency}%</span>
+                        </div>
+                        <input type="range" min={20} max={100} step={1} value={urgency} onChange={(e) => setUrgency(Number(e.target.value))} className="mt-4 w-full accent-[#f0d7a8]" />
+                      </div>
+                      <div className="rounded-2xl border border-white/8 bg-black/30 p-5">
+                        <div className="flex items-center justify-between text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                          Resilience
+                          <span className="text-[#f0d7a8]">{resilienceLevel}%</span>
+                        </div>
+                        <input type="range" min={20} max={100} step={1} value={resilienceLevel} onChange={(e) => setResilienceLevel(Number(e.target.value))} className="mt-4 w-full accent-[#f0d7a8]" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {[
+                      { label: 'Satellites Needed', value: usageLab.recommendedSatellites, note: 'Recommended first wave' },
+                      { label: 'Revisit Speed', value: `${usageLab.revisitMinutes} min`, note: 'Time between useful passes' },
+                      { label: 'People Supported', value: usageLab.peopleSupported.toLocaleString(), note: 'Estimated real use reach' },
+                      { label: 'Readiness Score', value: `${usageLab.capacityScore}/100`, note: 'Based on fit, urgency, and resilience' },
+                    ].map((item) => (
+                      <div key={item.label} className="lux-glass rounded-3xl p-5">
+                        <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">{item.label}</div>
+                        <div className="mt-3 text-3xl font-black text-white">{item.value}</div>
+                        <div className="mt-2 text-sm text-muted-foreground">{item.note}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="animated-border rounded-3xl p-8 md:p-12" style={{ borderColor: 'rgba(240,215,168,0.28)' }}>
+                <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+                  <div>
+                    <h3 className="text-3xl font-black uppercase tracking-widest text-white mb-2 flex items-center gap-3">
+                      <Radio className="text-[#f0d7a8]" /> Link + Latency Simulator
+                    </h3>
+                    <p className="text-muted-foreground text-sm">See how orbit, throughput demand, and satellite count change the real feel of the network.</p>
+
+                    <div className="mt-8 space-y-5">
+                      <div className="rounded-2xl border border-white/8 bg-black/30 p-5">
+                        <div className="flex items-center justify-between text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                          Data Demand
+                          <span className="text-[#f0d7a8]">{dataDemand} TB/day</span>
+                        </div>
+                        <input type="range" min={80} max={1600} step={10} value={dataDemand} onChange={(e) => setDataDemand(Number(e.target.value))} className="mt-4 w-full accent-[#f0d7a8]" />
+                      </div>
+                      <div className="rounded-2xl border border-white/8 bg-black/30 p-5">
+                        <div className="flex items-center justify-between text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                          Orbit Altitude
+                          <span className="text-[#f0d7a8]">{orbitAlt.toLocaleString()} km</span>
+                        </div>
+                        <div className="mt-3 text-sm text-muted-foreground">This simulator stays synced to the orbit calculator above.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/35 p-6">
+                    <div className="absolute inset-x-10 top-5 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                    <div className="absolute left-[10%] top-[22%] h-32 w-32 rounded-full bg-[radial-gradient(circle,rgba(240,215,168,0.18),transparent_70%)] blur-3xl" />
+                    <div className="absolute right-[12%] bottom-[14%] h-36 w-36 rounded-full bg-[radial-gradient(circle,rgba(127,140,163,0.18),transparent_72%)] blur-3xl" />
+
+                    <div className="relative">
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { label: 'Latency', value: `${usageLab.linkLatency} ms` },
+                          { label: 'Ground Stations', value: usageLab.groundStations },
+                          { label: 'Downlink Need', value: `${usageLab.downlinkNeed} Gbps` },
+                        ].map((item) => (
+                          <div key={item.label} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4 text-center">
+                            <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">{item.label}</div>
+                            <div className="mt-3 text-2xl font-black text-white">{item.value}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-8 space-y-4">
+                        {[
+                          { label: 'Signal Stability', value: Math.min(98, Math.round(resilienceLevel * 0.7 + 22)) },
+                          { label: 'Realtime Feel', value: Math.max(32, 100 - usageLab.linkLatency) },
+                          { label: 'Capacity Headroom', value: Math.max(18, Math.min(96, 108 - usageLab.downlinkNeed)) },
+                        ].map((bar) => (
+                          <div key={bar.label}>
+                            <div className="mb-2 flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">{bar.label}</span>
+                              <span className="font-mono text-white">{bar.value}%</span>
+                            </div>
+                            <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                              <motion.div className="h-full rounded-full bg-gradient-to-r from-[#f3e0b7] via-[#d8aa67] to-[#7f8ca3]" initial={{ width: 0 }} whileInView={{ width: `${bar.value}%` }} viewport={{ once: true }} transition={{ duration: 0.7 }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-8 rounded-3xl border border-white/8 bg-white/[0.03] p-5">
+                        <div className="flex items-center gap-3 text-sm uppercase tracking-[0.22em] text-[#f0d7a8]">
+                          <Waves size={16} />
+                          Live Network Read
+                        </div>
+                        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                          {usageLab.linkLatency < 55 ? 'This setup feels responsive enough for alerting, map layers, and live operational dashboards.' : 'This setup is better for batch imaging and delayed analysis unless you lower orbit altitude or add capacity.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+            </motion.div>
+
+            <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="animated-border rounded-3xl p-8 md:p-12" style={{ borderColor: 'rgba(154,124,86,0.34)' }}>
+                <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+                  <div>
+                    <h3 className="text-3xl font-black uppercase tracking-widest text-white mb-2 flex items-center gap-3">
+                      <ShieldCheck className="text-[#f0d7a8]" /> Launch Readiness Matrix
+                    </h3>
+                    <p className="text-muted-foreground text-sm">A quick board for checking whether the current service plan feels strong enough to present as a real deployment.</p>
+                    <div className="mt-8 rounded-3xl border border-white/10 bg-black/30 p-6">
+                      <div className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Mission Confidence</div>
+                      <div className="mt-4 text-5xl font-black text-white">{usageLab.capacityScore}%</div>
+                      <div className="mt-2 text-sm text-muted-foreground">{usageLab.serviceTier}</div>
+                      <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
+                        <motion.div className="h-full rounded-full bg-gradient-to-r from-[#9a7c56] via-[#d8aa67] to-[#f3e0b7]" initial={{ width: 0 }} whileInView={{ width: `${usageLab.capacityScore}%` }} viewport={{ once: true }} transition={{ duration: 0.9 }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {[
+                      {
+                        title: 'Coverage Readiness',
+                        score: Math.min(99, Math.round(usageLab.recommendedSatellites * 6.8)),
+                        detail: `${usageLab.recommendedSatellites} satellites keep ${coverageRadius.toLocaleString()} km active.`,
+                      },
+                      {
+                        title: 'Launch Fit',
+                        score: canFit ? Math.min(99, selVehicle.reliability + 1) : 22,
+                        detail: canFit ? `${selVehicle.name} can carry this payload now.` : 'Payload is too heavy for the selected rocket.',
+                      },
+                      {
+                        title: 'User Delivery',
+                        score: Math.min(97, Math.round(usageLab.peopleSupported / 18000)),
+                        detail: `${usageLab.peopleSupported.toLocaleString()} people can realistically benefit.`,
+                      },
+                      {
+                        title: 'Operations Backup',
+                        score: Math.min(98, Math.round(resilienceLevel * 0.88 + usageLab.groundStations * 3)),
+                        detail: `${usageLab.groundStations} ground stations with resilience at ${resilienceLevel}%.`,
+                      },
+                    ].map((item, index) => (
+                      <motion.div key={item.title} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.08 }} className="lux-glass rounded-3xl p-5">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-bold text-white">{item.title}</div>
+                          <Sparkles size={16} className="text-[#f0d7a8]" />
+                        </div>
+                        <div className="mt-4 text-3xl font-black text-white">{item.score}%</div>
+                        <div className="mt-3 text-sm text-muted-foreground">{item.detail}</div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+            </motion.div>
+            </div>
           </div>
         </section>
 
@@ -640,7 +1062,7 @@ export default function Home() {
                   transition={{ duration: 0.8 }}
                   className={`relative pl-10 md:pl-0 md:w-1/2 ${idx % 2 === 0 ? 'md:ml-auto md:pl-16' : 'md:pr-16 md:text-right'}`}
                 >
-                  <div className={`absolute top-0 w-6 h-6 rounded-full border-4 border-black bg-primary shadow-[0_0_20px_rgba(138,43,226,1)] -left-[13px] md:left-auto ${idx % 2 === 0 ? 'md:-left-[13px]' : 'md:-right-[13px]'}`} />
+                  <div className={`absolute top-0 w-6 h-6 rounded-full border-4 border-black bg-primary shadow-[0_0_20px_rgba(236,199,140,0.95)] -left-[13px] md:left-auto ${idx % 2 === 0 ? 'md:-left-[13px]' : 'md:-right-[13px]'}`} />
                   <div className="glass-card p-8 rounded-3xl hover:border-primary/50 transition-colors group">
                     <span className="text-primary font-mono text-lg font-bold tracking-[0.3em] group-hover:text-white transition-colors">{mission.year}</span>
                     <h3 className="text-3xl font-bold mt-3 mb-4 text-white uppercase tracking-wider">{mission.name}</h3>
@@ -663,7 +1085,7 @@ export default function Home() {
           <div className="space-y-40">
             {[
               { img: nebulaImg, title: "Stellar Nurseries", desc: "Nebulae are massive clouds of dust and gas where new stars are born, painting the cosmos in vibrant, impossible colors." },
-              { img: blackholeImg, title: "Singularity", desc: "Regions of spacetime where gravity is so strong that nothing — no particles or even electromagnetic radiation such as light — can escape from it.", reverse: true },
+              { img: blackholeImg, title: "Singularity", desc: "Regions of spacetime where gravity is so strong that nothing - no particles or even electromagnetic radiation such as light - can escape from it.", reverse: true },
               { img: galaxyImg, title: "Spiral Galaxies", desc: "Immense, rotating assemblies of stars, planetary systems, and interstellar matter, bound together by gravity and dark matter." }
             ].map(item => (
               <motion.div
@@ -672,7 +1094,7 @@ export default function Home() {
                 className={`flex flex-col md:flex-row items-center gap-16 ${item.reverse ? 'md:flex-row-reverse' : ''}`}
               >
                 <div className="w-full md:w-1/2 relative group">
-                  <div className="absolute -inset-6 bg-gradient-to-r from-primary to-cyan-500 blur-2xl rounded-full opacity-20 group-hover:opacity-40 transition duration-1000" />
+                  <div className="absolute -inset-6 bg-gradient-to-r from-[#f0d7a8] to-[#9a7c56] blur-2xl rounded-full opacity-20 group-hover:opacity-36 transition duration-1000" />
                   <img src={item.img} alt={item.title} className="w-full h-auto rounded-3xl relative z-10 border border-white/10 shadow-2xl object-cover aspect-[4/3] grayscale-[20%] group-hover:grayscale-0 transition-all duration-700" />
                 </div>
                 <div className={`w-full md:w-1/2 ${item.reverse ? 'md:text-right' : ''}`}>
@@ -708,3 +1130,4 @@ export default function Home() {
     </div>
   );
 }
+
