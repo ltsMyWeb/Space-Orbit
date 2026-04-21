@@ -1,0 +1,20 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "7ZTlaDg7T0Ip0vRliPI8P"
+uri = "file://artifacts/space-website/src/assets/nebula.png"
+type = "image"
+title = "NASA style glowing nebula"
+
+[[generated]]
+id = "6rt8txYFO8lDiw6vxp66N"
+uri = "file://artifacts/space-website/src/assets/blackhole.png"
+type = "image"
+title = "Black hole accretion disk"
+
+[[generated]]
+id = "iItiGfqT95kL5PvHZuwB9"
+uri = "file://artifacts/space-website/src/assets/galaxy.png"
+type = "image"
+title = "Spiral galaxy in deep space"
